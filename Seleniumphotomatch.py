@@ -28,7 +28,7 @@ opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWeb
 driver = webdriver.Chrome(options=opts)
 driver.get("https://www.airbnb.com/login/")
 elem = driver.find_element_by_id("signin_email").send_keys("airbnb@cabovillas.com")
-elem = driver.find_element_by_id("signin_password").send_keys("C@b0Str0ng")
+elem = driver.find_element_by_id("signin_password").send_keys("Cant post this on github")
 elem = driver.find_element_by_id("user-login-btn").click()
 
 
