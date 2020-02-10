@@ -15,20 +15,25 @@ from skimage import measure, img_as_float
 from skimage.io import imread
 from skimage.metrics import structural_similarity as ssim
 from skimage.transform import resize
-from PIL import Image
 import skimage.io as io
 from skimage.io import imsave
+import csv
 
+
+with open("W:\Evan\python scripts\captions.spreadsheet\\abblogin.txt", "r", encoding = "utf-16") as file:
+    for details in file:
+        username, password = details.split(" ")
+        print(username)
+        print(password)
 
 rawList = pandas.read_excel("W:\Evan\python scripts\captions.spreadsheet\captionsdatasheet.xlsx", names=["Code", "Caption", "Id"])
-#print (idLs[idLs.Id == idLs[0].Id])
 
 opts = Options()
 opts.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36")
 driver = webdriver.Chrome(options=opts)
 driver.get("https://www.airbnb.com/login/")
-elem = driver.find_element_by_id("signin_email").send_keys("airbnb@cabovillas.com")
-elem = driver.find_element_by_id("signin_password").send_keys("Cant post this on github")
+elem = driver.find_element_by_id("signin_email").send_keys(username)
+elem = driver.find_element_by_id("signin_password").send_keys(password)
 elem = driver.find_element_by_id("user-login-btn").click()
 
 
@@ -53,7 +58,7 @@ def url_to_image(url):
     img = cv2.imdecode(arr, -1)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img = img_as_float(img)
-    resized = resize(img, (76, 59))
+    resized = resize(img, (1024, 692))
     return resized
 
 
@@ -64,38 +69,45 @@ for curId in [usefulLs[0]]:
     thisRawList = rawList[rawList.Id==curId]
     pcLs = thisRawList.iloc[:, 1]
     thisCode = thisRawList.iloc[0,0]
+    print(thisCode)
     thisPath = "W:\Evan\python scripts\captions.spreadsheet\VRBO_captions\\" + thisCode + "\\"
     theseElems = getLinks(curId)
     for tup in theseElems:
         dataIndex = tup[0]
         url = tup[1]
+        url = url.split("?", 1)[0]
         currentElem = driver.find_elements_by_css_selector("img[src*='jpg'][data-index]")[dataIndex-1]
         image1 = url_to_image(url)
-        
+        print("moving on to the next image on abb")
         match = False
-        for caption in pcLs: #the reason its navigating to the wrong picture/putting in the wrong caption has to do with j NOTE: J does not match index with caption
-            image2 = cv2.imread(thisPath + caption)
-            cv2.imwrite("converted.jpg", image2)
-            image2 = cv2.imread("converted.jpg")
-            image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-            image2 = resize(image2, (76, 59))
-            ssim = measure.compare_ssim(image1, image2, data_range=6)
-            if ssim > 0.66:
-                currentElem.click()
-                wait = WebDriverWait(driver, 10)
-                descBox = wait.until(EC.element_to_be_clickable((By.NAME, 'photo_details_caption_input')))
-                descBox.click()
-                descBox.clear()
-                descBox.send_keys(formatCaption(caption))
-                
-                saveButton = driver.find_elements_by_tag_name("button")[4]
+        for caption in pcLs:
+            finalCapt = "hi"
+            with open("W:\Evan\python scripts\captions.spreadsheet\VRBO_url&caption\\" + thisCode + ".csv") as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    print("working on image")
+                    image2 = url_to_image(row[0])
+                    try:
+                        finalCapt = row[1]
+                    except IndexError:
+                        finalCapt = " "
+                    ssim = measure.compare_ssim(image1, image2)
+                    if ssim > 0.7:
+                        currentElem.click()
+                        wait = WebDriverWait(driver, 10)
+                        descBox = wait.until(EC.element_to_be_clickable((By.NAME, 'photo_details_caption_input')))
+                        descBox.click()
+                        descBox.clear()
+                        descBox.send_keys(finalCapt)
+                        saveButton = driver.find_element_by_xpath("//*[contains(text(), 'Save caption')]")
+                        saveButton.click()
+                        driver.get("https://www.airbnb.com/manage-your-space/"+str(curId)+"/details/photos")
+                        wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'photo-list__container')))
+                        print("match found ", ssim)
+                        print ("vrbo url:")
+                        print(row[0])
+                        print ("ABB URL:")
+                        print (url)
+                        break
+                break
 
-                saveButton.click()
-                driver.get("https://www.airbnb.com/manage-your-space/"+str(curId)+"/details/photos")
-                wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'photo-list__container')))
-
-                print("match found")
-                print ("Local Path:")
-                print(thisPath + caption)
-                print ("ABB URL:")
-                print (url)
